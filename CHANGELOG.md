@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.0
+
+- #233 Add support for PHP 8.3 and PHP 8.4 (@Kocal)
+
 ## v2.0.0
 
 - Minimum PHP version is now 8.1
