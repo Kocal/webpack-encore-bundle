@@ -2,7 +2,9 @@
 
 /*
  * This file is part of the Symfony WebpackEncoreBundle package.
+ *
  * (c) Fabien Potencier <fabien@symfony.com>
+ *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
@@ -24,7 +26,7 @@ class EntrypointCacheWarmer extends AbstractPhpFileCacheWarmer
         parent::__construct($phpArrayFile);
     }
 
-    protected function doWarmUp(string $cacheDir, ArrayAdapter $arrayAdapter, string $buildDir = null): bool
+    protected function doWarmUp(string $cacheDir, ArrayAdapter $arrayAdapter, ?string $buildDir = null): bool
     {
         foreach ($this->cacheKeys as $cacheKey => $path) {
             // If the file does not exist then just skip past this entry point.

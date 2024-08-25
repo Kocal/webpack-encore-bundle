@@ -2,7 +2,9 @@
 
 /*
  * This file is part of the Symfony WebpackEncoreBundle package.
+ *
  * (c) Fabien Potencier <fabien@symfony.com>
+ *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
@@ -209,8 +211,8 @@ class IntegrationTest extends TestCase
     {
         $container = $this->getContainerFromBootedKernel($kernel);
 
-        if ($container->has(\Twig\Environment::class)) {
-            return $container->get(\Twig\Environment::class);
+        if ($container->has(Environment::class)) {
+            return $container->get(Environment::class);
         }
 
         return $container->get('twig');
