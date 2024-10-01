@@ -95,6 +95,7 @@ final class WebpackEncoreExtension extends Extension
             $cacheEnabled ? new Reference('webpack_encore.cache') : null,
             $name,
             $strictMode,
+            new Reference('http_client', ContainerBuilder::NULL_ON_INVALID_REFERENCE),
         ];
         $definition = new Definition(EntrypointLookup::class, $arguments);
         $definition->addTag('kernel.reset', ['method' => 'reset']);
