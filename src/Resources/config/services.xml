@@ -68,7 +68,5 @@
             <tag name="kernel.event_subscriber" />
             <argument type="service" id="webpack_encore.entrypoint_lookup_collection" />
         </service>
-
-        <service id="webpack_encore.http_client" alias="http_client" />
     </services>
 </container>
