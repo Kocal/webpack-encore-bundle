@@ -12,6 +12,8 @@
 namespace Symfony\WebpackEncoreBundle\Asset;
 
 use Psr\Cache\CacheItemPoolInterface;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
 use Symfony\WebpackEncoreBundle\Exception\EntrypointNotFoundException;
 
 /**
@@ -35,12 +37,15 @@ class EntrypointLookup implements EntrypointLookupInterface, IntegrityDataProvid
 
     private $strictMode;
 
-    public function __construct(string $entrypointJsonPath, ?CacheItemPoolInterface $cache = null, ?string $cacheKey = null, bool $strictMode = true)
+    private $httpClient;
+
+    public function __construct(string $entrypointJsonPath, ?CacheItemPoolInterface $cache = null, ?string $cacheKey = null, bool $strictMode = true, ?HttpClientInterface $httpClient = null)
     {
         $this->entrypointJsonPath = $entrypointJsonPath;
         $this->cache = $cache;
         $this->cacheKey = $cacheKey;
         $this->strictMode = $strictMode;
+        $this->httpClient = $httpClient;
     }
 
     public function getJavaScriptFiles(string $entryName): array
@@ -119,15 +124,30 @@ class EntrypointLookup implements EntrypointLookupInterface, IntegrityDataProvid
             }
         }
 
-        $entrypointJsonContents = file_get_contents($this->entrypointJsonPath);
-        if ($entrypointJsonContents === false) {
+        if (str_starts_with($this->entrypointJsonPath, 'http')) {
+            if (null === $this->httpClient && !class_exists(HttpClient::class)) {
+                throw new \LogicException(\sprintf('You cannot fetch the entrypoints file from URL "%s" as the HttpClient component is not installed. Try running "composer require symfony/http-client".', $this->entrypointJsonPath));
+            }
+            $httpClient = $this->httpClient ?? HttpClient::create();
+
+            $response = $httpClient->request('GET', $this->entrypointJsonPath);
+
+            if (200 !== $response->getStatusCode()) {
+                if (!$this->strictMode) {
+                    return [];
+                }
+                throw new \InvalidArgumentException(\sprintf('Could not find the entrypoints file from URL "%s": the HTTP request failed with status code %d.', $this->entrypointJsonPath, $response->getStatusCode()));
+            }
+
+            $this->entriesData = $response->toArray();
+        } elseif (!file_exists($this->entrypointJsonPath)) {
             if (!$this->strictMode) {
                 return [];
             }
-            throw new \InvalidArgumentException(\sprintf('Could not find the entrypoints file from Webpack: the file "%s" does not exist or it is not readable.', $this->entrypointJsonPath));
+            throw new \InvalidArgumentException(\sprintf('Could not find the entrypoints file from Webpack: the file "%s" does not exist.', $this->entrypointJsonPath));
+        } else {
+            $this->entriesData = json_decode(file_get_contents($this->entrypointJsonPath), true);
         }
-
-        $this->entriesData = json_decode($entrypointJsonContents, true);
 
         if (null === $this->entriesData) {
             throw new \InvalidArgumentException(\sprintf('There was a problem JSON decoding the "%s" file', $this->entrypointJsonPath));

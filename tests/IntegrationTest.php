@@ -20,12 +20,14 @@ use Symfony\Component\Config\Loader\LoaderInterface;
 use Symfony\Component\DependencyInjection\Alias;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\Reference;
+use Symfony\Component\HttpClient\Response\MockResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\HttpKernelInterface;
 use Symfony\Component\HttpKernel\Kernel;
 use Symfony\Component\HttpKernel\Log\Logger;
 use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
+use Symfony\Contracts\HttpClient\ResponseInterface;
 use Symfony\WebpackEncoreBundle\Asset\EntrypointLookupCollectionInterface;
 use Symfony\WebpackEncoreBundle\Asset\EntrypointLookupInterface;
 use Symfony\WebpackEncoreBundle\Asset\TagRenderer;
@@ -70,6 +72,26 @@ class IntegrationTest extends TestCase
         $this->assertStringContainsString(
             '<script src="/build/other4.js"></script>',
             $html2
+        );
+
+        $html3 = $twig->render('@integration_test/template_remote.twig');
+        $this->assertStringContainsString(
+            '<script src="https://cdn.example.com/app.js?v=abcde01" referrerpolicy="origin"></script>',
+            $html3
+        );
+        $this->assertStringContainsString(
+            '<link rel="stylesheet" href="https://cdn.example.com/app.css?v=abcde02">',
+            $html3
+        );
+
+        $html4 = $twig->render('@integration_test/manual_template_remote.twig');
+        $this->assertStringContainsString(
+            '<script src="https://cdn.example.com/backend.js?v=abcde01"></script>',
+            $html4
+        );
+        $this->assertStringContainsString(
+            '<link rel="stylesheet" href="https://cdn.example.com/backend.css?v=abcde02" />',
+            $html4
         );
     }
 
@@ -137,7 +159,7 @@ class IntegrationTest extends TestCase
         $this->assertFileExists($cachePath);
         $data = require $cachePath;
         // check for both build keys
-        $this->assertSame(['_default', 'different_build'], array_keys($data[0] ?? $data));
+        $this->assertSame(['_default', 'different_build', 'remote_build'], array_keys($data[0] ?? $data));
     }
 
     public function testEnabledStrictModeThrowsExceptionIfBuildMissing()
@@ -162,6 +184,31 @@ class IntegrationTest extends TestCase
         $kernel->boot();
         $twig = $this->getTwigEnvironmentFromBootedKernel($kernel);
         $html = $twig->render('@integration_test/template.twig');
+        self::assertSame('', trim($html));
+    }
+
+    public function testEnabledStrictModeThrowsExceptionIfRemoteBuildMissing()
+    {
+        $this->expectException(\Twig\Error\RuntimeError::class);
+        $this->expectExceptionMessage('Could not find the entrypoints file from URL "https://example.com/missing_build/entrypoints.json": the HTTP request failed with status code 404.');
+
+        $kernel = new WebpackEncoreIntegrationTestKernel(true);
+        $kernel->outputPath = 'remote_build';
+        $kernel->builds = ['remote_build' => 'https://example.com/missing_build'];
+        $kernel->boot();
+        $twig = $this->getTwigEnvironmentFromBootedKernel($kernel);
+        $twig->render('@integration_test/template_remote.twig');
+    }
+
+    public function testDisabledStrictModeIgnoresMissingRemoteBuild()
+    {
+        $kernel = new WebpackEncoreIntegrationTestKernel(true);
+        $kernel->outputPath = 'remote_build';
+        $kernel->strictMode = false;
+        $kernel->builds = ['remote_build' => 'https://example.com/missing_build'];
+        $kernel->boot();
+        $twig = $this->getTwigEnvironmentFromBootedKernel($kernel);
+        $html = $twig->render('@integration_test/template_remote.twig');
         self::assertSame('', trim($html));
     }
 
@@ -228,6 +275,7 @@ class WebpackEncoreIntegrationTestKernel extends Kernel
     public $outputPath = __DIR__.'/fixtures/build';
     public $builds = [
         'different_build' => __DIR__.'/fixtures/different_build',
+        'remote_build' => 'https://example.com/build',
     ];
     public $scriptAttributes = [];
 
@@ -261,6 +309,9 @@ class WebpackEncoreIntegrationTestKernel extends Kernel
                 'enabled' => $this->enableAssets,
             ],
             'test' => true,
+            'http_client' => [
+                'mock_response_factory' => WebpackEncoreHttpClientMockCallback::class,
+            ],
         ];
         if (self::VERSION_ID >= 50100) {
             $frameworkConfig['router'] = [
@@ -310,6 +361,9 @@ class WebpackEncoreIntegrationTestKernel extends Kernel
         // @legacy for 5.0 and earlier: did not have controller.service_arguments tag
         $container->getDefinition('kernel')
             ->addTag('controller.service_arguments');
+
+        $container->register(WebpackEncoreHttpClientMockCallback::class)
+            ->setPublic(true);
     }
 
     public function getCacheDir(): string
@@ -363,5 +417,48 @@ class WebpackEncoreAutowireTestService
 {
     public function __construct(EntrypointLookupInterface $entrypointLookup, EntrypointLookupCollectionInterface $entrypointLookupCollection)
     {
+    }
+}
+
+class WebpackEncoreHttpClientMockCallback
+{
+    /** @var callable|null */
+    public $callback;
+
+    public function __invoke(string $method, string $url, array $options = []): ResponseInterface
+    {
+        $callback = $this->callback ?? static function (string $method, string $url) {
+            if ('GET' === $method && 'https://example.com/build/entrypoints.json' === $url) {
+                return new MockResponse(json_encode([
+                    'entrypoints' => [
+                        'app' => [
+                            'js' => [
+                                'https://cdn.example.com/app.js?v=abcde01',
+                            ],
+                            'css' => [
+                                'https://cdn.example.com/app.css?v=abcde02',
+                            ],
+                        ],
+                        'backend' => [
+                            'js' => [
+                                'https://cdn.example.com/backend.js?v=abcde01',
+                            ],
+                            'css' => [
+                                'https://cdn.example.com/backend.css?v=abcde02',
+                            ],
+                        ],
+                    ],
+                ], flags: \JSON_THROW_ON_ERROR), [
+                    'http_code' => 200,
+                    'response_headers' => ['Content-Type: application/json'],
+                ]);
+            }
+
+            return new MockResponse('Not found.', [
+                'http_code' => 404,
+            ]);
+        };
+
+        return ($callback)($method, $url, $options);
     }
 }
