@@ -19,7 +19,7 @@ class EntrypointLookupTest extends TestCase
 {
     private $entrypointLookup;
 
-    private static $testJson = <<<EOF
+    private static string $testJson = <<<EOF
 {
   "entrypoints": {
     "my_entry": {

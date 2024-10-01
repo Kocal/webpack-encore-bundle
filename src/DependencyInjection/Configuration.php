@@ -26,9 +26,7 @@ final class Configuration implements ConfigurationInterface
 
         $rootNode
             ->validate()
-                ->ifTrue(function (array $v): bool {
-                    return false === $v['output_path'] && empty($v['builds']);
-                })
+                ->ifTrue(fn(array $v): bool => false === $v['output_path'] && empty($v['builds']))
                 ->thenInvalid('Default build can only be disabled if multiple entry points are defined.')
             ->end()
             ->children()

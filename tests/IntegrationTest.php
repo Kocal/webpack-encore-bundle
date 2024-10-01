@@ -254,7 +254,7 @@ class IntegrationTest extends TestCase
         return $kernel->getContainer()->get('test.service_container');
     }
 
-    private function getTwigEnvironmentFromBootedKernel(WebpackEncoreIntegrationTestKernel $kernel)
+    private function getTwigEnvironmentFromBootedKernel(WebpackEncoreIntegrationTestKernel $kernel): Environment
     {
         $container = $this->getContainerFromBootedKernel($kernel);
 
@@ -269,8 +269,6 @@ class IntegrationTest extends TestCase
 class WebpackEncoreIntegrationTestKernel extends Kernel
 {
     use MicroKernelTrait;
-
-    private $enableAssets;
     public $strictMode = true;
     public $outputPath = __DIR__.'/fixtures/build';
     public $builds = [
@@ -279,10 +277,9 @@ class WebpackEncoreIntegrationTestKernel extends Kernel
     ];
     public $scriptAttributes = [];
 
-    public function __construct(bool $enableAssets)
+    public function __construct(private bool $enableAssets)
     {
         parent::__construct('test', true);
-        $this->enableAssets = $enableAssets;
     }
 
     public function registerBundles(): array
@@ -400,11 +397,8 @@ class WebpackEncoreIntegrationTestKernel extends Kernel
 
 class WebpackEncoreCacheWarmerTester
 {
-    private $entrypointCacheWarmer;
-
-    public function __construct(EntrypointCacheWarmer $entrypointCacheWarmer)
+    public function __construct(private readonly EntrypointCacheWarmer $entrypointCacheWarmer)
     {
-        $this->entrypointCacheWarmer = $entrypointCacheWarmer;
     }
 
     public function warmCache(string $cacheDir)

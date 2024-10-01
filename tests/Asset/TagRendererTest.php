@@ -41,9 +41,7 @@ class TagRendererTest extends TestCase
                 ['/build/file1.js', 'custom_package'],
                 ['/build/file2.js', 'custom_package']
             )
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages, ['defer' => true]);
 
         $output = $renderer->renderWebpackScriptTags('my_entry', 'custom_package');
@@ -101,9 +99,7 @@ class TagRendererTest extends TestCase
         $packages = $this->createMock(Packages::class);
         $packages->expects($this->once())
             ->method('getUrl')
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages, [
             'defer' => false, // false disables the attribute
             'async' => null, // null allows the attribute
@@ -165,9 +161,7 @@ class TagRendererTest extends TestCase
         $packages = $this->createMock(Packages::class);
         $packages->expects($this->once())
             ->method('getUrl')
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages, ['crossorigin' => 'anonymous']);
 
         $output = $renderer->renderWebpackScriptTags('my_entry', 'custom_package');
@@ -211,9 +205,7 @@ class TagRendererTest extends TestCase
                 ['/build/file2.js', null],
                 ['/build/file3.js', 'specific_package']
             )
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages, ['crossorigin' => 'anonymous']);
 
         $output = $renderer->renderWebpackScriptTags('my_entry', 'custom_package');
@@ -258,9 +250,7 @@ class TagRendererTest extends TestCase
                 ['/build/file1.js', 'custom_package'],
                 ['/build/file2.js', 'custom_package']
             )
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages, ['crossorigin' => 'anonymous']);
 
         $output = $renderer->renderWebpackScriptTags('my_entry', 'custom_package');
@@ -291,9 +281,7 @@ class TagRendererTest extends TestCase
         $packages = $this->createMock(Packages::class);
         $packages->expects($this->any())
             ->method('getUrl')
-            ->willReturnCallback(function ($path) {
-                return 'http://localhost:8080'.$path;
-            });
+            ->willReturnCallback(fn($path) => 'http://localhost:8080'.$path);
         $renderer = new TagRenderer($entrypointCollection, $packages);
 
         $renderer->renderWebpackScriptTags('my_entry');
